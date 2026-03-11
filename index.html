@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hover Numbers Animation</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- GSAP + ScrollTrigger -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+    <style>
+        :root {
+            --accent-color: #2563eb;
+            --font-mono: 'Space Mono', monospace;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            background-color: #f4f4f5;
+            font-family: var(--font-mono);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* --- Hero Section --- */
+        .hero {
+            width: 100%;
+            height: 100vh;
+            height: 100dvh;
+            background-color: rgba(255, 255, 255, 0.75);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Hero Background with Random Characters */
+        .hero-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.15;
+        }
+
+        .hero-char {
+            position: absolute;
+            font-family: var(--font-mono);
+            font-size: clamp(48px, 8vw, 160px);
+            font-weight: 700;
+            color: hsla(0, 0%, 100%, 0.05);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.108);
+            line-height: 1;
+            white-space: nowrap;
+            user-select: none;
+            -webkit-user-select: none;
+            text-transform: uppercase;
+            letter-spacing: -0.05em;
+            margin: 0;
+            padding: 0;
+            will-change: transform, color, text-shadow, opacity;
+        }
+
+        /* Center label */
+        .label {
+            position: relative;
+            z-index: 1;
+            font-family: var(--font-mono);
+            font-size: 1.2rem;
+            color: #52525b;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            pointer-events: none;
+        }
+
+        /* Touch device hint */
+        @media (hover: none) and (pointer: coarse) {
+            .hero {
+                cursor: default;
+            }
+        }
+
+        /* --- Mode Switch --- */
+        .mode-switch {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 40px;
+            padding: 8px 16px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: #52525b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+            user-select: none;
+        }
+
+        .mode-label {
+            opacity: 0.5;
+            transition: opacity 0.3s ease;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .mode-label.active {
+            opacity: 1;
+            color: #2563eb;
+        }
+
+        .toggle-track {
+            position: relative;
+            width: 40px;
+            height: 22px;
+            background: #e4e4e7;
+            border-radius: 11px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .toggle-track.on {
+            background: #2563eb;
+        }
+
+        .toggle-thumb {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 18px;
+            height: 18px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+        }
+
+        .toggle-track.on .toggle-thumb {
+            transform: translateX(18px);
+        }
+
+        @media (max-width: 480px) {
+            .mode-switch {
+                bottom: 16px;
+                right: 16px;
+                padding: 6px 12px;
+                font-size: 10px;
+                gap: 6px;
+            }
+            .toggle-track {
+                width: 34px;
+                height: 20px;
+            }
+            .toggle-thumb {
+                width: 16px;
+                height: 16px;
+            }
+            .toggle-track.on .toggle-thumb {
+                transform: translateX(14px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <section class="hero">
+        <div class="hero-background" id="heroBackground"></div>
+    </section>
+
+    <!-- Animation Mode Toggle -->
+    <div class="mode-switch" id="modeSwitch">
+        <span class="mode-label active" id="labelTransition">Transition</span>
+        <div class="toggle-track" id="toggleTrack">
+            <div class="toggle-thumb"></div>
+        </div>
+        <span class="mode-label" id="labelScale">Scale Pop</span>
+    </div>
+
+    <script>
+        // --- Animation Mode ---
+        let animMode = 'transition'; // 'transition' or 'scale'
+
+        const toggleTrack = document.getElementById('toggleTrack');
+        const labelTransition = document.getElementById('labelTransition');
+        const labelScale = document.getElementById('labelScale');
+
+        function setAnimMode(mode) {
+            animMode = mode;
+            if (mode === 'scale') {
+                toggleTrack.classList.add('on');
+                labelScale.classList.add('active');
+                labelTransition.classList.remove('active');
+            } else {
+                toggleTrack.classList.remove('on');
+                labelTransition.classList.add('active');
+                labelScale.classList.remove('active');
+            }
+        }
+
+        toggleTrack.addEventListener('click', () => {
+            setAnimMode(animMode === 'transition' ? 'scale' : 'transition');
+        });
+        labelTransition.addEventListener('click', () => setAnimMode('transition'));
+        labelScale.addEventListener('click', () => setAnimMode('scale'));
+
+        // --- Simple Hash Function ---
+        function simpleHash(str) {
+            let hash = 5381;
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) + hash) + str.charCodeAt(i);
+            }
+            return Math.abs(hash).toString(16);
+        }
+
+        // --- Hero Background Character Generation ---
+        const heroBackground = document.getElementById('heroBackground');
+        const charElements = [];
+
+        function generateHeroBackgroundChars() {
+            const heroSection = document.querySelector('.hero');
+            const rect = heroSection.getBoundingClientRect();
+            const width = rect.width;
+            const height = rect.height;
+            const aspectRatio = width / height;
+
+            // Measure actual character size
+            const probe = document.createElement('div');
+            probe.className = 'hero-char';
+            probe.textContent = 'A';
+            probe.style.visibility = 'hidden';
+            heroBackground.appendChild(probe);
+            const charW = probe.offsetWidth;
+            const charH = probe.offsetHeight;
+            heroBackground.removeChild(probe);
+
+            // Calculate grid to fill viewport tightly
+            const cols = Math.ceil(width / charW) + 2;
+            const rows = Math.ceil(height / charH) + 2;
+
+            // Offset to center the grid
+            const totalW = cols * charW;
+            const totalH = rows * charH;
+            const offsetX = (width - totalW) / 2;
+            const offsetY = (height - totalH) / 2;
+
+            const centerRow = (rows - 1) / 2;
+            const centerCol = (cols - 1) / 2;
+
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    const charEl = document.createElement('div');
+                    charEl.className = 'hero-char';
+
+                    const seedData = `${row}-${col}-${Math.random()}`;
+                    const hashVal = simpleHash(seedData);
+                    charEl.textContent = hashVal[0];
+                    charEl.dataset.row = row;
+                    charEl.dataset.col = col;
+                    charEl.dataset.originalHash = hashVal;
+
+                    const xPos = offsetX + col * charW;
+                    const yPos = offsetY + row * charH;
+
+                    charEl.style.left = xPos + 'px';
+                    charEl.style.top = yPos + 'px';
+                    charEl.style.transform = 'none';
+
+                    // Store base position for parallax
+                    charEl.dataset.baseLeft = xPos;
+                    charEl.dataset.baseTop = yPos;
+
+                    // Distance from center for stagger
+                    const distFromCenter = Math.sqrt(
+                        Math.pow(row - centerRow, 2) + Math.pow(col - centerCol, 2)
+                    );
+                    charEl.dataset.distFromCenter = distFromCenter;
+
+                    // Start invisible for entrance animation
+                    if (animMode === 'scale') {
+                        gsap.set(charEl, { opacity: 0, scale: 0.3 });
+                    } else {
+                        gsap.set(charEl, { opacity: 0 });
+                    }
+
+                    heroBackground.appendChild(charEl);
+                    charElements.push(charEl);
+                }
+            }
+        }
+
+        generateHeroBackgroundChars();
+
+        // --- Entrance Animation (stagger from center outward, Zajno-style) ---
+        function playEntranceAnimation() {
+            // Sort by distance from center
+            const sorted = [...charElements].sort(
+                (a, b) => parseFloat(a.dataset.distFromCenter) - parseFloat(b.dataset.distFromCenter)
+            );
+
+            if (animMode === 'scale') {
+                gsap.to(sorted, {
+                    opacity: 1,
+                    scale: 1,
+                    duration: 0.5,
+                    stagger: { each: 0.008, ease: "power1.out" },
+                    ease: "back.out(1.4)",
+                    clearProps: "scale",
+                    onComplete: () => { startIdleFloat(); }
+                });
+            } else {
+                gsap.to(sorted, {
+                    opacity: 1,
+                    duration: 0.5,
+                    stagger: { each: 0.008, ease: "power1.out" },
+                    ease: "power3.out",
+                    onComplete: () => { startIdleFloat(); }
+                });
+            }
+        }
+
+        playEntranceAnimation();
+
+        // --- Subtle Idle Floating Animation (breath-like, BlackMath style) ---
+        const floatTimelines = [];
+
+        function startIdleFloat() {
+            charElements.forEach((charEl, i) => {
+                const delay = Math.random() * 3;
+                const duration = 3 + Math.random() * 2;
+                const yOffset = 4 + Math.random() * 6;
+                const rotOffset = -2 + Math.random() * 4;
+
+                const tl = gsap.timeline({ repeat: -1, yoyo: true, delay });
+                tl.to(charEl, {
+                    y: yOffset,
+                    rotation: rotOffset,
+                    duration: duration,
+                    ease: "sine.inOut"
+                });
+
+                floatTimelines.push(tl);
+            });
+        }
+
+        // --- Hover Effect with Proximity-Based Activation (GSAP-powered) ---
+        const heroSection = document.querySelector('.hero');
+        const mouseRadius = 150;
+        let mouseX = 0;
+        let mouseY = 0;
+
+        function handleInteraction(clientX, clientY) {
+            mouseX = clientX;
+            mouseY = clientY;
+
+            charElements.forEach(charEl => {
+                const rect = charEl.getBoundingClientRect();
+                const charCenterX = rect.left + rect.width / 2;
+                const charCenterY = rect.top + rect.height / 2;
+
+                const distance = Math.sqrt(
+                    Math.pow(mouseX - charCenterX, 2) +
+                    Math.pow(mouseY - charCenterY, 2)
+                );
+
+                if (distance < mouseRadius) {
+                    if (!charEl.isActivating) {
+                        charEl.isActivating = true;
+                        let iteration = 0;
+
+                        // Smooth GSAP activation (eased color + glow)
+                        gsap.to(charEl, {
+                            color: '#0051ff',
+                            textShadow: '0 0 20px rgba(37, 99, 235, 0.6)',
+                            duration: animMode === 'scale' ? 0.35 : 0.4,
+                            ease: "power2.out",
+                            overwrite: 'auto'
+                        });
+
+                        // Scale pop (only in scale mode)
+                        if (animMode === 'scale') {
+                            gsap.killTweensOf(charEl, 'scale');
+                            gsap.timeline()
+                                .to(charEl, { scale: 1.25, duration: 0.18, ease: "power2.out" })
+                                .to(charEl, { scale: 1, duration: 0.35, ease: "elastic.out(1, 0.4)" });
+                        }
+
+                        clearInterval(charEl.interval);
+
+                        charEl.interval = setInterval(() => {
+                            const hashInput = `${mouseX}${mouseY}${Date.now()}${charEl.dataset.row}${charEl.dataset.col}${iteration}`;
+                            const hash = simpleHash(hashInput);
+
+                            const charIndex = iteration % hash.length;
+                            charEl.textContent = hash[charIndex];
+
+                            if (iteration >= 20) {
+                                const finalHash = simpleHash(`${charEl.dataset.row}${charEl.dataset.col}${mouseX}${mouseY}`);
+                                charEl.textContent = finalHash[0];
+                                clearInterval(charEl.interval);
+                                charEl.isActivating = false;
+                            }
+
+                            iteration++;
+                        }, 50);
+                    }
+                } else {
+                    if (charEl.isActivating) {
+                        clearInterval(charEl.interval);
+                        charEl.isActivating = false;
+
+                        // Smooth GSAP deactivation (fade back)
+                        const deactivateProps = {
+                            color: 'hsla(0, 0%, 100%, 0.05)',
+                            textShadow: '0 2px 4px rgba(0, 0, 0, 0.108)',
+                            duration: 0.6,
+                            ease: "power3.out",
+                            overwrite: 'auto'
+                        };
+                        if (animMode === 'scale') {
+                            gsap.killTweensOf(charEl, 'scale');
+                            deactivateProps.scale = 1;
+                        }
+                        gsap.to(charEl, deactivateProps);
+
+                        const seedData = `${charEl.dataset.row}-${charEl.dataset.col}-reset`;
+                        const hashVal = simpleHash(seedData);
+                        charEl.textContent = hashVal[0];
+                    }
+                }
+            });
+        }
+
+        heroSection.addEventListener('mousemove', (e) => {
+            handleInteraction(e.clientX, e.clientY);
+        });
+
+        // Touch support for mobile
+        heroSection.addEventListener('touchmove', (e) => {
+            const touch = e.touches[0];
+            handleInteraction(touch.clientX, touch.clientY);
+        }, { passive: true });
+
+        heroSection.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            handleInteraction(touch.clientX, touch.clientY);
+        }, { passive: true });
+
+        function handleLeave() {
+            charElements.forEach(charEl => {
+                clearInterval(charEl.interval);
+                charEl.isActivating = false;
+
+                const leaveProps = {
+                    color: 'hsla(0, 0%, 100%, 0.05)',
+                    textShadow: '0 2px 4px rgba(0, 0, 0, 0.108)',
+                    duration: 0.8,
+                    ease: "power3.out",
+                    overwrite: 'auto'
+                };
+                if (animMode === 'scale') {
+                    gsap.killTweensOf(charEl, 'scale');
+                    leaveProps.scale = 1;
+                }
+                gsap.to(charEl, leaveProps);
+
+                const seedData = `${charEl.dataset.row}-${charEl.dataset.col}-reset`;
+                const hashVal = simpleHash(seedData);
+                charEl.textContent = hashVal[0];
+            });
+        }
+
+        heroSection.addEventListener('mouseleave', handleLeave);
+        heroSection.addEventListener('touchend', handleLeave);
+
+        // --- Responsive: rebuild on resize (debounced) ---
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                // Kill all existing float timelines
+                floatTimelines.forEach(tl => tl.kill());
+                floatTimelines.length = 0;
+
+                // Clear existing chars
+                charElements.length = 0;
+                heroBackground.innerHTML = '';
+
+                // Regenerate
+                generateHeroBackgroundChars();
+                playEntranceAnimation();
+            }, 300);
+        });
+    </script>
+</body>
+</html>
+
