@@ -262,6 +262,60 @@
             }
         }
 
+        /* --- Effects Control (Scramble + Reveal All) --- */
+        .effects-control {
+            position: fixed;
+            bottom: 76px;
+            left: 24px;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 40px;
+            padding: 8px 14px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: #52525b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+            user-select: none;
+        }
+
+        .effects-divider {
+            width: 1px;
+            height: 14px;
+            background: currentColor;
+            opacity: 0.15;
+            flex-shrink: 0;
+        }
+
+        .fx-label {
+            cursor: pointer;
+            white-space: nowrap;
+            opacity: 0.45;
+            transition: opacity 0.2s ease, color 0.2s ease;
+        }
+
+        .fx-label.active {
+            opacity: 1;
+            color: var(--accent-color);
+        }
+
+        @media (max-width: 480px) {
+            .effects-control {
+                bottom: 68px;
+                left: 16px;
+                padding: 6px 10px;
+                font-size: 10px;
+                gap: 6px;
+            }
+        }
+
         /* --- Color Presets --- */
         .color-presets {
             position: fixed;
@@ -333,6 +387,19 @@
     <!-- Color Presets -->
     <div class="color-presets" id="colorPresets"></div>
 
+    <!-- Effects: Scramble + Reveal All -->
+    <div class="effects-control" id="effectsControl">
+        <span class="fx-label active" id="labelScramble">Scramble</span>
+        <div class="toggle-track on" id="toggleScramble">
+            <div class="toggle-thumb"></div>
+        </div>
+        <div class="effects-divider"></div>
+        <span class="fx-label" id="labelReveal">Reveal</span>
+        <div class="toggle-track" id="toggleReveal">
+            <div class="toggle-thumb"></div>
+        </div>
+    </div>
+
     <!-- Font Size Control -->
     <div class="font-control">
         <button class="font-btn" id="fontDecrease">−</button>
@@ -367,6 +434,9 @@
         // ============================================================
 
         let animMode = 'transition'; // 'transition' | 'scale'
+        let scrambleOn  = true;
+        let revealAllOn = false;
+        let revealScrambleId = null;
 
         const FONT_SIZES  = [48, 64, 80, 96, 112, 128, 144, 160];
         const FONT_LABELS = ['30%', '40%', '50%', '60%', '70%', '80%', '90%', '100%'];
@@ -514,7 +584,7 @@
             document.documentElement.style.setProperty('--accent-color', preset.accentUI);
 
             // Update pill widget surfaces
-            document.querySelectorAll('.mode-switch, .font-control, .color-presets').forEach(pill => {
+            document.querySelectorAll('.mode-switch, .font-control, .color-presets, .effects-control').forEach(pill => {
                 pill.style.background    = preset.uiBg;
                 pill.style.borderColor   = preset.uiBorder;
                 pill.style.color         = preset.uiText;
@@ -523,7 +593,7 @@
             // Animate all resting chars to the new base color
             const duration = animate ? 0.5 : 0;
             charElements.forEach(el => {
-                if (el.isActivating) return;
+                if (el.isActivating || el._fullyLit) return;
                 gsap.to(el, {
                     color: preset.charBase,
                     textShadow: preset.charShadow,
@@ -560,6 +630,126 @@
         }
 
         buildPresetUI();
+
+        // ============================================================
+        // SCRAMBLE TOGGLE
+        // ============================================================
+
+        const toggleScramble = document.getElementById('toggleScramble');
+        const labelScramble  = document.getElementById('labelScramble');
+
+        function setScramble(on) {
+            scrambleOn = on;
+            toggleScramble.classList.toggle('on', on);
+            labelScramble.classList.toggle('active', on);
+            if (!on) {
+                // Stop any in-progress per-char scrambles immediately
+                charElements.forEach(el => {
+                    if (el.interval) { clearInterval(el.interval); el.interval = null; }
+                    el.isActivating = false;
+                });
+            }
+        }
+
+        toggleScramble.addEventListener('click',  () => setScramble(!scrambleOn));
+        labelScramble.addEventListener('click',   () => setScramble(!scrambleOn));
+
+        // ============================================================
+        // REVEAL ALL TOGGLE — wave in from centre, wave out to edges
+        // ============================================================
+
+        const toggleReveal = document.getElementById('toggleReveal');
+        const labelReveal  = document.getElementById('labelReveal');
+
+        function buildRevealLitStyle() {
+            const gc = activePreset.glowColor;
+            // parse hex to build shadow
+            const r = parseInt(gc.slice(1,3),16);
+            const g = parseInt(gc.slice(3,5),16);
+            const b = parseInt(gc.slice(5,7),16);
+            return {
+                color:      gc,
+                textShadow: `0 0 18px rgba(${r},${g},${b},0.95), 0 0 40px rgba(${r},${g},${b},0.5), 0 0 70px rgba(${r},${g},${b},0.2)`
+            };
+        }
+
+        function startRevealScramble() {
+            stopRevealScramble();
+            let tick = 0;
+            revealScrambleId = setInterval(() => {
+                tick++;
+                charElements.forEach(el => {
+                    if (!el._fullyLit) return;
+                    if (Math.random() < 0.12) {
+                        el.textContent = simpleHash(`${tick}${el.dataset.row}${el.dataset.col}${Date.now()}`)[0];
+                    }
+                });
+            }, 80);
+        }
+
+        function stopRevealScramble() {
+            if (revealScrambleId) { clearInterval(revealScrambleId); revealScrambleId = null; }
+        }
+
+        function setRevealAll(on) {
+            revealAllOn = on;
+            toggleReveal.classList.toggle('on', on);
+            labelReveal.classList.toggle('active', on);
+            stopRevealScramble();
+
+            // Sort chars by distance from centre for wave effect
+            const sorted = [...charElements].sort(
+                (a, b) => parseFloat(a.dataset.distFromCenter) - parseFloat(b.dataset.distFromCenter)
+            );
+            const staggerEach = Math.min(0.016, 1.0 / sorted.length);
+
+            if (on) {
+                // Deactivate any hover-active chars cleanly first
+                charElements.forEach(el => {
+                    if (el.interval) { clearInterval(el.interval); el.interval = null; }
+                    el.isActivating = false;
+                });
+                gsap.killTweensOf(charElements);
+
+                // Wave outward — light up from centre
+                const litStyle = buildRevealLitStyle();
+                sorted.forEach((el, i) => {
+                    gsap.to(el, {
+                        color:      litStyle.color,
+                        textShadow: litStyle.textShadow,
+                        duration:   0.4,
+                        delay:      i * staggerEach,
+                        ease:       'power2.out',
+                        overwrite:  'auto',
+                        onStart() { el._fullyLit = true; }
+                    });
+                });
+
+                // Start scramble after wave finishes (if scramble is on)
+                if (scrambleOn) {
+                    const waveMs = sorted.length * staggerEach * 1000 + 450;
+                    setTimeout(() => { if (revealAllOn && scrambleOn) startRevealScramble(); }, waveMs);
+                }
+
+            } else {
+                // Wave inward — dim from edges back to centre
+                const reverseSorted = [...sorted].reverse();
+                reverseSorted.forEach((el, i) => {
+                    gsap.to(el, {
+                        color:      activePreset.charBase,
+                        textShadow: activePreset.charShadow,
+                        duration:   0.35,
+                        delay:      i * staggerEach,
+                        ease:       'power3.out',
+                        overwrite:  'auto',
+                        onStart() { el._fullyLit = false; }
+                    });
+                });
+            }
+        }
+
+        toggleReveal.addEventListener('click', () => setRevealAll(!revealAllOn));
+        labelReveal.addEventListener('click',  () => setRevealAll(!revealAllOn));
 
         // ============================================================
         // ANIMATION MODE TOGGLE
@@ -667,6 +857,7 @@
                     );
 
                     el.style.color = activePreset.charBase;
+                    el._fullyLit = false;
 
                     // Start hidden
                     gsap.set(el, animMode === 'scale' ? { opacity: 0, scale: 0.3 } : { opacity: 0 });
@@ -712,10 +903,17 @@
         }
 
         function rebuildGrid() {
+            stopRevealScramble();
             gsap.killTweensOf(charElements);
-            charElements.forEach(el => clearInterval(el.interval));
+            charElements.forEach(el => {
+                clearInterval(el.interval);
+                el.interval = null;
+                el.isActivating = false;
+                el._fullyLit = false;
+            });
             buildGrid();
             playEntrance();
+            if (revealAllOn) setTimeout(() => setRevealAll(true), 900);
         }
 
         // ============================================================
@@ -723,7 +921,7 @@
         // ============================================================
 
         function activateChar(charEl) {
-            if (charEl.isActivating) return;
+            if (charEl.isActivating || charEl._fullyLit) return;
             charEl.isActivating = true;
             let iteration = 0;
 
@@ -742,6 +940,12 @@
                     .to(charEl, { scale: 1,    duration: 0.35, ease: 'elastic.out(1, 0.4)' });
             }
 
+            if (!scrambleOn) {
+                // No scramble — just glow, no interval
+                charEl.isActivating = false;
+                return;
+            }
+
             clearInterval(charEl.interval);
             charEl.interval = setInterval(() => {
                 const hash = simpleHash(`${mouseX}${mouseY}${Date.now()}${charEl.dataset.row}${charEl.dataset.col}${iteration}`);
@@ -750,6 +954,7 @@
                 if (iteration >= 20) {
                     charEl.textContent = simpleHash(`${charEl.dataset.row}${charEl.dataset.col}${mouseX}${mouseY}`)[0];
                     clearInterval(charEl.interval);
+                    charEl.interval = null;
                     charEl.isActivating = false;
                 }
                 iteration++;
@@ -757,7 +962,7 @@
         }
 
         function deactivateChar(charEl) {
-            if (!charEl.isActivating) return;
+            if (!charEl.isActivating || charEl._fullyLit) return;
             clearInterval(charEl.interval);
             charEl.isActivating = false;
 
