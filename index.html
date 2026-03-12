@@ -9,7 +9,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 
-    <!-- GSAP + ScrollTrigger -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 
     <style>
@@ -65,7 +64,7 @@
             position: absolute;
             font-family: var(--font-mono);
             font-weight: 700;
-            color: hsla(0, 0%, 100%, 0.05);
+            color: hsla(0,0%,10%,0.08);
             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.108);
             line-height: 1;
             white-space: nowrap;
@@ -130,7 +129,7 @@
 
         .mode-label.active {
             opacity: 1;
-            color: #2563eb;
+            color: var(--accent-color);
         }
 
         .toggle-track {
@@ -145,7 +144,7 @@
         }
 
         .toggle-track.on {
-            background: #2563eb;
+            background: var(--accent-color);
         }
 
         .toggle-thumb {
@@ -229,9 +228,9 @@
         }
 
         .font-btn:hover {
-            background: #2563eb;
+            background: var(--accent-color);
             color: #fff;
-            border-color: #2563eb;
+            border-color: var(--accent-color);
         }
 
         .font-btn:disabled {
@@ -262,12 +261,77 @@
                 gap: 6px;
             }
         }
+
+        /* --- Color Presets --- */
+        .color-presets {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 40px;
+            padding: 8px 14px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+        }
+
+        .preset-label {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: #52525b;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            opacity: 0.5;
+            white-space: nowrap;
+            padding-right: 4px;
+            user-select: none;
+        }
+
+        .preset-swatch {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .preset-swatch:hover {
+            transform: scale(1.25);
+        }
+
+        .preset-swatch.active {
+            border-color: rgba(0, 0, 0, 0.25);
+            box-shadow: 0 0 0 2px rgba(255,255,255,0.9);
+            transform: scale(1.15);
+        }
+
+        @media (max-width: 480px) {
+            .color-presets {
+                top: 12px;
+                gap: 6px;
+                padding: 6px 10px;
+            }
+            .preset-swatch { width: 15px; height: 15px; }
+            .preset-label  { font-size: 9px; }
+        }
     </style>
 </head>
 <body>
     <section class="hero">
         <div class="hero-background" id="heroBackground"></div>
     </section>
+
+    <!-- Color Presets -->
+    <div class="color-presets" id="colorPresets"></div>
 
     <!-- Font Size Control -->
     <div class="font-control">
@@ -313,6 +377,189 @@
         let charElements = [];
         let mouseX = 0, mouseY = 0;
         const mouseRadius = 150;
+
+        // ============================================================
+        // COLOR PRESETS
+        // Each preset defines the full visual palette:
+        //   pageBg      — outer body background
+        //   heroBg      — semi-transparent hero overlay
+        //   charBase    — resting char color (very subtle)
+        //   charShadow  — resting text-shadow
+        //   glowColor   — hover highlight color
+        //   glowShadow  — hover text-shadow glow
+        //   accentUI    — toggle / button accent color
+        //   uiBg        — pill widget background
+        //   uiBorder    — pill widget border
+        //   uiText      — pill widget text
+        // ============================================================
+
+        const COLOR_PRESETS = [
+            {
+                id: 'slate',
+                label: 'Slate',
+                swatch: '#2563eb',
+                pageBg:     '#f4f4f5',
+                heroBg:     'rgba(255,255,255,0.75)',
+                charBase:   'hsla(0,0%,10%,0.08)',
+                charShadow: '0 2px 4px rgba(0,0,0,0.10)',
+                glowColor:  '#0051ff',
+                glowShadow: '0 0 20px rgba(37,99,235,0.6)',
+                accentUI:   '#2563eb',
+                uiBg:       'rgba(255,255,255,0.85)',
+                uiBorder:   'rgba(0,0,0,0.08)',
+                uiText:     '#52525b',
+            },
+            {
+                id: 'ash',
+                label: 'Ash',
+                swatch: '#71717a',
+                pageBg:     '#e8e8ea',
+                heroBg:     'rgba(240,240,242,0.80)',
+                charBase:   'hsla(240,4%,20%,0.10)',
+                charShadow: '0 2px 4px rgba(0,0,0,0.08)',
+                glowColor:  '#3f3f46',
+                glowShadow: '0 0 18px rgba(63,63,70,0.55)',
+                accentUI:   '#52525b',
+                uiBg:       'rgba(255,255,255,0.85)',
+                uiBorder:   'rgba(0,0,0,0.08)',
+                uiText:     '#52525b',
+            },
+            {
+                id: 'midnight',
+                label: 'Midnight',
+                swatch: '#1e1b4b',
+                pageBg:     '#0f0e1a',
+                heroBg:     'rgba(15,14,26,0.82)',
+                charBase:   'hsla(240,40%,80%,0.07)',
+                charShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                glowColor:  '#818cf8',
+                glowShadow: '0 0 22px rgba(129,140,248,0.65)',
+                accentUI:   '#6366f1',
+                uiBg:       'rgba(30,27,75,0.80)',
+                uiBorder:   'rgba(255,255,255,0.08)',
+                uiText:     '#c7d2fe',
+            },
+            {
+                id: 'fog',
+                label: 'Fog',
+                swatch: '#7dd3fc',
+                pageBg:     '#e0f2fe',
+                heroBg:     'rgba(224,242,254,0.78)',
+                charBase:   'hsla(200,70%,30%,0.08)',
+                charShadow: '0 2px 4px rgba(14,116,144,0.10)',
+                glowColor:  '#0284c7',
+                glowShadow: '0 0 20px rgba(2,132,199,0.55)',
+                accentUI:   '#0284c7',
+                uiBg:       'rgba(255,255,255,0.82)',
+                uiBorder:   'rgba(14,116,144,0.12)',
+                uiText:     '#0c4a6e',
+            },
+            {
+                id: 'sage',
+                label: 'Sage',
+                swatch: '#4ade80',
+                pageBg:     '#f0fdf4',
+                heroBg:     'rgba(240,253,244,0.80)',
+                charBase:   'hsla(142,50%,20%,0.08)',
+                charShadow: '0 2px 4px rgba(22,101,52,0.10)',
+                glowColor:  '#16a34a',
+                glowShadow: '0 0 20px rgba(22,163,74,0.55)',
+                accentUI:   '#16a34a',
+                uiBg:       'rgba(255,255,255,0.82)',
+                uiBorder:   'rgba(22,101,52,0.10)',
+                uiText:     '#14532d',
+            },
+            {
+                id: 'ember',
+                label: 'Ember',
+                swatch: '#f97316',
+                pageBg:     '#fafaf9',
+                heroBg:     'rgba(255,255,254,0.78)',
+                charBase:   'hsla(24,80%,20%,0.08)',
+                charShadow: '0 2px 4px rgba(154,52,18,0.10)',
+                glowColor:  '#ea580c',
+                glowShadow: '0 0 20px rgba(234,88,12,0.55)',
+                accentUI:   '#ea580c',
+                uiBg:       'rgba(255,255,255,0.85)',
+                uiBorder:   'rgba(154,52,18,0.10)',
+                uiText:     '#7c2d12',
+            },
+            {
+                id: 'rose',
+                label: 'Rose',
+                swatch: '#fb7185',
+                pageBg:     '#fff1f2',
+                heroBg:     'rgba(255,241,242,0.80)',
+                charBase:   'hsla(350,60%,20%,0.07)',
+                charShadow: '0 2px 4px rgba(159,18,57,0.10)',
+                glowColor:  '#e11d48',
+                glowShadow: '0 0 20px rgba(225,29,72,0.55)',
+                accentUI:   '#e11d48',
+                uiBg:       'rgba(255,255,255,0.85)',
+                uiBorder:   'rgba(159,18,57,0.10)',
+                uiText:     '#881337',
+            },
+        ];
+
+        let activePreset = COLOR_PRESETS[0];
+
+        function applyPreset(preset, animate = true) {
+            activePreset = preset;
+
+            // Page & hero background
+            document.body.style.backgroundColor = preset.pageBg;
+            document.querySelector('.hero').style.backgroundColor = preset.heroBg;
+
+            // Update CSS accent variable — drives toggle, labels, btn hover via CSS
+            document.documentElement.style.setProperty('--accent-color', preset.accentUI);
+
+            // Update pill widget surfaces
+            document.querySelectorAll('.mode-switch, .font-control, .color-presets').forEach(pill => {
+                pill.style.background    = preset.uiBg;
+                pill.style.borderColor   = preset.uiBorder;
+                pill.style.color         = preset.uiText;
+            });
+
+            // Animate all resting chars to the new base color
+            const duration = animate ? 0.5 : 0;
+            charElements.forEach(el => {
+                if (el.isActivating) return;
+                gsap.to(el, {
+                    color: preset.charBase,
+                    textShadow: preset.charShadow,
+                    duration,
+                    ease: 'power2.out',
+                    overwrite: 'auto'
+                });
+            });
+
+            // Sync swatch active state
+            document.querySelectorAll('.preset-swatch').forEach(sw => {
+                sw.classList.toggle('active', sw.dataset.presetId === preset.id);
+            });
+        }
+
+        function buildPresetUI() {
+            const container = document.getElementById('colorPresets');
+            container.innerHTML = '';
+
+            const lbl = document.createElement('span');
+            lbl.className = 'preset-label';
+            lbl.textContent = 'Theme';
+            container.appendChild(lbl);
+
+            COLOR_PRESETS.forEach(preset => {
+                const swatch = document.createElement('button');
+                swatch.className = 'preset-swatch' + (preset.id === activePreset.id ? ' active' : '');
+                swatch.dataset.presetId = preset.id;
+                swatch.title = preset.label;
+                swatch.style.background = preset.swatch;
+                swatch.addEventListener('click', () => applyPreset(preset));
+                container.appendChild(swatch);
+            });
+        }
+
+        buildPresetUI();
 
         // ============================================================
         // ANIMATION MODE TOGGLE
@@ -419,6 +666,8 @@
                         Math.pow(row - centerRow, 2) + Math.pow(col - centerCol, 2)
                     );
 
+                    el.style.color = activePreset.charBase;
+
                     // Start hidden
                     gsap.set(el, animMode === 'scale' ? { opacity: 0, scale: 0.3 } : { opacity: 0 });
 
@@ -479,8 +728,8 @@
             let iteration = 0;
 
             gsap.to(charEl, {
-                color: '#0051ff',
-                textShadow: '0 0 20px rgba(37, 99, 235, 0.6)',
+                color: activePreset.glowColor,
+                textShadow: activePreset.glowShadow,
                 duration: animMode === 'scale' ? 0.35 : 0.4,
                 ease: 'power2.out',
                 overwrite: 'auto'
@@ -513,8 +762,8 @@
             charEl.isActivating = false;
 
             const props = {
-                color: 'hsla(0, 0%, 100%, 0.05)',
-                textShadow: '0 2px 4px rgba(0, 0, 0, 0.108)',
+                color: activePreset.charBase,
+                textShadow: activePreset.charShadow,
                 duration: 0.6, ease: 'power3.out', overwrite: 'auto'
             };
             if (animMode === 'scale') { gsap.killTweensOf(charEl, 'scale'); props.scale = 1; }
